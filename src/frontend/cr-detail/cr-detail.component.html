@@ -1,0 +1,45 @@
+<section class="cr-detail">
+	<p *ngIf="state.status === 'loading'" class="cr-detail__loading" role="status">Loading…</p>
+
+	<div *ngIf="state.status === 'error'" class="cr-detail__error" role="alert">
+		<p>Couldn't load this change request: {{ state.error }}</p>
+		<button type="button" (click)="load()">Retry</button>
+	</div>
+
+	<ng-container *ngIf="state.status === 'loaded' && detail as cr">
+		<header class="cr-detail__header">
+			<h2>{{ cr.title }}</h2>
+			<span class="cr-status" [attr.data-status]="cr.status">{{ cr.status }}</span>
+			<p class="cr-detail__totals">{{ cr.totals.baselineTotal }} → {{ cr.totals.newTotal }} (Δ {{ cr.totals.delta }})</p>
+		</header>
+
+		<section class="cr-timeline">
+			<h3>Timeline</h3>
+			<ol class="cr-timeline__list">
+				<li *ngFor="let entry of timeline" class="cr-timeline__entry">
+					<span class="cr-timeline__action">{{ entry.action }}</span>
+					<span class="cr-timeline__by">{{ entry.byUserId }}</span>
+					<span *ngIf="entry.note" class="cr-timeline__note">{{ entry.note }}</span>
+				</li>
+			</ol>
+		</section>
+
+		<section class="cr-actions">
+			<p *ngIf="actionError" class="cr-actions__error" role="alert">{{ actionError }}</p>
+
+			<button type="button" class="cr-actions__approve" [disabled]="!canApprove || submitting" (click)="approve()">
+				Approve
+			</button>
+
+			<div class="cr-actions__reject" *ngIf="canReject">
+				<label>
+					Reason for rejection
+					<textarea class="cr-actions__reason" (input)="onReasonInput($any($event.target).value)"></textarea>
+				</label>
+				<button type="button" class="cr-actions__reject-btn" [disabled]="!canReject || submitting || !rejectReason.trim()" (click)="reject()">
+					Reject
+				</button>
+			</div>
+		</section>
+	</ng-container>
+</section>
