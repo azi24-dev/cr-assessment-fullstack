@@ -64,13 +64,32 @@ export class CrDetailComponent implements OnInit {
 	}
 
 	async approve(): Promise<void> {
-		// TODO: perform the approve action through the client and reflect the outcome in the view.
-		throw new Error('approve() not implemented');
+		this.submitting = true;
+		this.actionError = undefined;
+		try {
+			await this.client.approve(this.session.user, this.id, new Date().toISOString());
+			await this.load();
+		} catch (err) {
+			this.actionError = (err as Error).message;
+		} finally {
+			this.submitting = false;
+		}
 	}
 
 	async reject(): Promise<void> {
-		// TODO: require a reason, then perform the reject action through the client and reflect the
-		//       outcome in the view.
-		throw new Error('reject() not implemented');
+		if (!this.rejectReason.trim()) {
+			this.actionError = 'A reason is required to reject.';
+			return;
+		}
+		this.submitting = true;
+		this.actionError = undefined;
+		try {
+			await this.client.reject(this.session.user, this.id, new Date().toISOString(), this.rejectReason.trim());
+			await this.load();
+		} catch (err) {
+			this.actionError = (err as Error).message;
+		} finally {
+			this.submitting = false;
+		}
 	}
 }
