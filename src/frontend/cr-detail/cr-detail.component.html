@@ -31,6 +31,10 @@
 				Approve
 			</button>
 
+			<button type="button" class="cr-actions__apply" *ngIf="canApply" [disabled]="submitting" (click)="apply()">
+				Apply
+			</button>
+
 			<div class="cr-actions__reject" *ngIf="canReject">
 				<label>
 					Reason for rejection

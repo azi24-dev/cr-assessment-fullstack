@@ -53,4 +53,7 @@ export class CrApiClient {
 	reject(user: ReqUser, id: string, at: string, note: string): Promise<ChangeRequest> {
 		return this.settle(() => this.service.reject(user, id, at, note));
 	}
+	apply(user: ReqUser, id: string, at: string): Promise<ChangeRequest> {
+		return this.settle(() => this.service.apply(user, id, at));
+	}
 }

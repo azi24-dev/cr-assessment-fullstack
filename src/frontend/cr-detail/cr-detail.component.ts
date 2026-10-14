@@ -70,11 +70,29 @@ export class CrDetailComponent implements OnInit, OnChanges {
 		return this.detail?.status === 'PENDING_APPROVAL' && this.session.user.policies.includes('cr_x_o');
 	}
 
+	get canApply(): boolean {
+		return this.detail?.status === 'APPROVED' && this.session.user.policies.includes('cr_x_o');
+	}
+
 	async approve(): Promise<void> {
 		this.submitting = true;
 		this.actionError = undefined;
 		try {
 			await this.client.approve(this.session.user, this.id, new Date().toISOString());
+			await this.load();
+			this.changed.emit();
+		} catch (err) {
+			this.actionError = (err as Error).message;
+		} finally {
+			this.submitting = false;
+		}
+	}
+
+	async apply(): Promise<void> {
+		this.submitting = true;
+		this.actionError = undefined;
+		try {
+			await this.client.apply(this.session.user, this.id, new Date().toISOString());
 			await this.load();
 			this.changed.emit();
 		} catch (err) {
