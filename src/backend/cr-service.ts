@@ -92,9 +92,20 @@ export class CrService {
 	}
 
 	apply(user: ReqUser, id: string, at: string): ChangeRequest {
-		// TODO: require an apply policy; require APPROVED; recompute totals; check budget covers a
-		//       positive delta else INSUFFICIENT_BUDGET; update budget; set APPLIED; audit.
-		throw Errors.validation('apply not implemented');
+		const cr = this.getOrThrow(user, id);
+		if (!this.isApplier(user)) throw Errors.forbidden('Cannot apply');
+		this.refreshTotals(cr);
+		if (cr.totals.delta > 0) {
+			const agreement = this.agreements.get(cr.agreementId);
+			if (!agreement) throw Errors.notFound('Agreement not found');
+			const budget = this.budgets.get(agreement.budgetId);
+			if (!budget) throw Errors.notFound('Budget not found');
+			if (budget.balance < cr.totals.delta) throw Errors.insufficientBudget();
+			budget.balance -= cr.totals.delta;
+			budget.spent += cr.totals.delta;
+		}
+		this.transition(cr, CrStatus.APPLIED, CrAction.APPLY, user.id, at);
+		return this.repo.save(cr);
 	}
 
 	get(user: ReqUser, id: string): ChangeRequest {
