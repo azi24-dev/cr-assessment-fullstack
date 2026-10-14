@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CrListComponent } from '../frontend/cr-list/cr-list.component';
 import { CrDetailComponent } from '../frontend/cr-detail/cr-detail.component';
@@ -20,6 +20,8 @@ import { users } from '../backend/seed';
 	templateUrl: './app.component.html',
 })
 export class AppComponent {
+	@ViewChild(CrListComponent) private listRef?: CrListComponent;
+
 	readonly users = users;
 	readonly userKeys = Object.keys(users);
 	selectedId: string | null = 'CR-2';
@@ -29,11 +31,16 @@ export class AppComponent {
 
 	switchUser(key: string): void {
 		this.session.user = users[key];
+		this.selectedId = null;
 		this.reload();
 	}
 
 	onSelect(id: string): void {
 		this.selectedId = id;
+	}
+
+	onDetailChanged(): void {
+		void this.listRef?.load();
 	}
 
 	private reload(): void {

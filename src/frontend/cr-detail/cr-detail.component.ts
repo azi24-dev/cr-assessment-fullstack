@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CrApiClient } from '../../integration/cr-api-client';
 import { SessionService } from '../../session/session.service';
@@ -16,8 +16,9 @@ import { idle, loading, ViewState } from '../view-state';
 	imports: [CommonModule],
 	templateUrl: './cr-detail.component.html',
 })
-export class CrDetailComponent implements OnInit {
+export class CrDetailComponent implements OnInit, OnChanges {
 	@Input() id!: string;
+	@Output() changed = new EventEmitter<void>();
 
 	state: ViewState<ChangeRequest> = idle();
 	submitting = false;
@@ -28,6 +29,12 @@ export class CrDetailComponent implements OnInit {
 
 	ngOnInit(): void {
 		void this.load();
+	}
+
+	ngOnChanges(changes: SimpleChanges): void {
+		if (changes['id'] && !changes['id'].firstChange) {
+			void this.load();
+		}
 	}
 
 	async load(): Promise<void> {
@@ -69,6 +76,7 @@ export class CrDetailComponent implements OnInit {
 		try {
 			await this.client.approve(this.session.user, this.id, new Date().toISOString());
 			await this.load();
+			this.changed.emit();
 		} catch (err) {
 			this.actionError = (err as Error).message;
 		} finally {
@@ -86,6 +94,7 @@ export class CrDetailComponent implements OnInit {
 		try {
 			await this.client.reject(this.session.user, this.id, new Date().toISOString(), this.rejectReason.trim());
 			await this.load();
+			this.changed.emit();
 		} catch (err) {
 			this.actionError = (err as Error).message;
 		} finally {
