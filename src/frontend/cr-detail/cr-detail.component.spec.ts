@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CrDetailComponent } from './cr-detail.component';
 import { SessionService } from '../../session/session.service';
+import { CrApiClient } from '../../integration/cr-api-client';
 import { users } from '../../backend/seed';
 import { ReqUser } from '../../backend/cr.types';
 
@@ -39,6 +40,18 @@ describe('CrDetailComponent', () => {
 	it('disables Approve for a read-only viewer on a pending CR', async () => {
 		const fixture = await render(users.viewer, 'CR-2');
 		expect(getApproveBtn(fixture).disabled).toBe(true);
+	});
+
+	it('disables Approve and hides Reject for a DRAFT CR', async () => {
+		const fixture = await render(users.mona, 'CR-1');
+		expect(getApproveBtn(fixture).disabled).toBe(true);
+		expect(fixture.nativeElement.querySelector('.cr-actions__reject')).toBeNull();
+	});
+
+	it('disables Approve and hides Reject for a terminal APPLIED CR', async () => {
+		const fixture = await render(users.mona, 'CR-APPLIED');
+		expect(getApproveBtn(fixture).disabled).toBe(true);
+		expect(fixture.nativeElement.querySelector('.cr-actions__reject')).toBeNull();
 	});
 });
 
@@ -95,9 +108,9 @@ describe('CrDetailComponent — approve through client', () => {
 		const fixture = await render(users.mona, 'CR-2');
 		expect(getStatus(fixture)).toBe('PENDING_APPROVAL');
 
-		getApproveBtn(fixture).click();       // triggers component approve()
-		await flush();                         // client.approve() resolves
-		await flush();                         // client.get() (inside load()) resolves
+		getApproveBtn(fixture).click();
+		await flush();
+		await flush();
 		fixture.detectChanges();
 
 		expect(getStatus(fixture)).toBe('APPROVED');
@@ -107,12 +120,109 @@ describe('CrDetailComponent — approve through client', () => {
 		const fixture = await render(users.mona, 'CR-2');
 
 		getApproveBtn(fixture).click();
-		fixture.detectChanges(); // submitting = true, button should disable
+		fixture.detectChanges();
 
 		expect(getApproveBtn(fixture).disabled).toBe(true);
 
 		await flush();
 		await flush();
 		fixture.detectChanges();
+	});
+});
+
+// ─── reject through the client ───────────────────────────────────────────────
+
+describe('CrDetailComponent — reject through client', () => {
+	it('reject button is disabled when no reason is entered', async () => {
+		const fixture = await render(users.mona, 'CR-2');
+		const rejectBtn: HTMLButtonElement = fixture.nativeElement.querySelector('.cr-actions__reject-btn');
+		expect(rejectBtn.disabled).toBe(true);
+	});
+
+	it('transitions the CR to REJECTED and re-renders after clicking Reject with a reason', async () => {
+		const fixture = await render(users.mona, 'CR-2');
+		expect(getStatus(fixture)).toBe('PENDING_APPROVAL');
+
+		const textarea: HTMLTextAreaElement = fixture.nativeElement.querySelector('.cr-actions__reason');
+		textarea.value = 'Budget exceeded';
+		textarea.dispatchEvent(new Event('input'));
+		fixture.detectChanges();
+
+		const rejectBtn: HTMLButtonElement = fixture.nativeElement.querySelector('.cr-actions__reject-btn');
+		expect(rejectBtn.disabled).toBe(false);
+
+		rejectBtn.click();
+		await flush();
+		await flush();
+		fixture.detectChanges();
+
+		expect(getStatus(fixture)).toBe('REJECTED');
+	});
+
+	it('shows an error message when rejection fails', async () => {
+		const fixture = await render(users.mona, 'CR-2');
+		const client = TestBed.inject(CrApiClient);
+		client.failNext = true;
+
+		const textarea: HTMLTextAreaElement = fixture.nativeElement.querySelector('.cr-actions__reason');
+		textarea.value = 'Some reason';
+		textarea.dispatchEvent(new Event('input'));
+		fixture.detectChanges();
+
+		fixture.nativeElement.querySelector('.cr-actions__reject-btn').click();
+		await flush();
+		fixture.detectChanges();
+
+		const errorEl = fixture.nativeElement.querySelector('.cr-actions__error');
+		expect(errorEl).not.toBeNull();
+		expect(errorEl.textContent).toContain('Network error');
+	});
+});
+
+// ─── apply through the client ────────────────────────────────────────────────
+
+describe('CrDetailComponent — apply through client', () => {
+	it('transitions the CR to APPLIED after approve then apply', async () => {
+		const fixture = await render(users.mona, 'CR-2');
+
+		// approve first
+		getApproveBtn(fixture).click();
+		await flush();
+		await flush();
+		fixture.detectChanges();
+		expect(getStatus(fixture)).toBe('APPROVED');
+
+		// apply button now visible
+		const applyBtn: HTMLButtonElement = fixture.nativeElement.querySelector('.cr-actions__apply');
+		expect(applyBtn).not.toBeNull();
+		expect(applyBtn.disabled).toBe(false);
+
+		applyBtn.click();
+		await flush();
+		await flush();
+		fixture.detectChanges();
+
+		expect(getStatus(fixture)).toBe('APPLIED');
+	});
+
+	it('shows an error when apply fails due to a network error', async () => {
+		const fixture = await render(users.mona, 'CR-2');
+		const client = TestBed.inject(CrApiClient);
+
+		// approve first
+		getApproveBtn(fixture).click();
+		await flush();
+		await flush();
+		fixture.detectChanges();
+
+		// simulate network failure on apply
+		client.failNext = true;
+		fixture.nativeElement.querySelector('.cr-actions__apply').click();
+		await flush();
+		fixture.detectChanges();
+
+		const errorEl = fixture.nativeElement.querySelector('.cr-actions__error');
+		expect(errorEl).not.toBeNull();
+		expect(errorEl.textContent).toContain('Network error');
 	});
 });
