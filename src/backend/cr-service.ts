@@ -84,9 +84,11 @@ export class CrService {
 	}
 
 	approve(user: ReqUser, id: string, at: string): ChangeRequest {
-		// TODO: require an approve policy; legal transition PENDING_APPROVAL -> APPROVED;
-		//       record approval + audit.
-		throw Errors.validation('approve not implemented');
+		const cr = this.getOrThrow(user, id);
+		if (!this.isApprover(user)) throw Errors.forbidden('Cannot approve');
+		this.transition(cr, CrStatus.APPROVED, CrAction.APPROVE, user.id, at);
+		cr.approvals = [...cr.approvals, { userId: user.id, action: CrAction.APPROVE, at }];
+		return this.repo.save(cr);
 	}
 
 	apply(user: ReqUser, id: string, at: string): ChangeRequest {
